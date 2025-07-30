@@ -1,13 +1,13 @@
 export default function AssetSelector({ value, onChange }) {
     return (
-      <select
+        <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border rounded px-3 py-2"
-      >
+        className="border rounded px-3 py-2 w-full"
+        >
         <option value="stock">Stock</option>
         <option value="mutual_fund">Mutual Fund</option>
-      </select>
+        </select>
     );
   }
   

@@ -35,14 +35,30 @@ function App() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">📈 Best Buy Date Finder</h1>
-      <div className="flex gap-4 mb-4">
-        <AssetSelector value={assetType} onChange={setAssetType} />
-        <TickerInput value={ticker} onChange={setTicker} />
-        <CheckButton onClick={fetchResults} loading={loading} />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white shadow-2xl rounded-xl p-6 max-w-3xl w-full">
+        <h1 className="text-3xl font-bold text-center text-blue-700 mb-6">
+          📈 Best Buy Date Finder
+        </h1>
+
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end mb-6">
+          <div className="flex-1">
+            <AssetSelector value={assetType} onChange={setAssetType} />
+          </div>
+          <div className="flex-1">
+            <TickerInput value={ticker} onChange={setTicker} />
+          </div>
+          <div>
+            <CheckButton onClick={fetchResults} loading={loading} />
+          </div>
+        </div>
+
+        {results && <ResultsTable data={results} />}
+
+        <p className="text-center text-sm text-gray-500 mt-8">
+          Built by Abhishek ⚡ Powered by FastAPI & Vite
+        </p>
       </div>
-      {results && <ResultsTable data={results} />}
     </div>
   );
 }
