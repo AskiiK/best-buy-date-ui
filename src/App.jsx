@@ -16,7 +16,7 @@ function App() {
       const timeWindows = ['7d', '30d', '1y', '3y', '5y', 'max'];
       const responses = await Promise.all(
         timeWindows.map(window =>
-          fetch('http://localhost:8000/best-buy-date', {
+          fetch('https://best-buy-date-ui.vercel.app/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asset_type: assetType, ticker, time_window: window })
