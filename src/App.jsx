@@ -37,6 +37,9 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white shadow-2xl rounded-xl p-6 max-w-3xl w-full">
+        {/* The Tailwind test heading was moved inside the return statement */}
+        <h1 className="text-4xl font-bold text-blue-600 underline mb-6">Tailwind is working!</h1>
+
         <h1 className="text-3xl font-bold text-center text-blue-700 mb-6">
           📈 Best Buy Date Finder
         </h1>
