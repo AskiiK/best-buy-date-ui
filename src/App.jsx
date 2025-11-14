@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import AssetSelector from './components/AssetSelector';
 import TickerInput from './components/TickerInput';
 import CheckButton from './components/CheckButton';
@@ -9,19 +9,45 @@ function App() {
   const [ticker, setTicker] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const apiBaseUrl = useMemo(() => {
+    const envBaseUrl = import.meta.env.VITE_API_URL;
+    const fallback = 'http://localhost:8000';
+
+    const trimmed = typeof envBaseUrl === 'string' ? envBaseUrl.trim() : '';
+    const baseUrl = trimmed.length > 0 ? trimmed : fallback;
+
+    return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  }, []);
 
   const fetchResults = async () => {
+      if (!ticker.trim()) {
+      setError('Enter a ticker symbol to continue.');
+      setResults(null);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
       const timeWindows = ['7d', '30d', '1y', '3y', '5y', 'max'];
       const responses = await Promise.all(
-        timeWindows.map(window =>
-          fetch(`${import.meta.env.VITE_API_URL}/best-buy-date`, {
+         timeWindows.map(async (window) => {
+          const response = await fetch(`${apiBaseUrl}/best-buy-date`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asset_type: assetType, ticker, time_window: window })
-          }).then(res => res.json())
-        )
+            });
+
+          if (!response.ok) {
+            const message = await response.text();
+            throw new Error(message || `Request failed with status ${response.status}`);
+          }
+
+          return response.json();
+        })
       );
       const formatted = timeWindows.map((window, idx) => ({
         window,
@@ -30,6 +56,8 @@ function App() {
       setResults(formatted);
     } catch (err) {
       console.error('Fetch failed', err);
+       setResults(null);
+        setError('Unable to load results. Please try again in a moment.');
     }
     setLoading(false);
   };
@@ -58,7 +86,13 @@ function App() {
           </div>
         </div>
 
-        {results && <ResultsTable data={results} />}
+         {error && (
+          <p className="mt-4 text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        )}
+
+        {results && !error && <ResultsTable data={results} />}
 
         <p className="text-center text-sm text-gray-500 mt-8">
           Built by Abhishek ⚡ Powered by FastAPI & Vite
