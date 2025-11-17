@@ -3,7 +3,11 @@ import AssetSelector from './components/AssetSelector.jsx'
 import CheckButton from './components/CheckButton.jsx'
 import ResultsTable from './components/ResultsTable.jsx'
 import TickerInput from './components/TickerInput.jsx'
-import { DEFAULT_SUGGESTION_COUNT, POPULAR_TICKERS } from './tickers.js'
+import {
+  DEFAULT_SUGGESTION_COUNT,
+  MIN_SEARCH_CHARS,
+  getTickerSuggestions,
+} from './tickers.js'
 import './App.css'
 
 const TIME_WINDOWS = [
@@ -29,18 +33,16 @@ function App() {
     normalizedTicker && assetType && timeWindow && status !== 'loading',
   )
 
-  const suggestions = useMemo(() => {
-    if (!ticker) {
-      return POPULAR_TICKERS.slice(0, DEFAULT_SUGGESTION_COUNT)
-    }
+  const suggestions = useMemo(
+    () => getTickerSuggestions(ticker, DEFAULT_SUGGESTION_COUNT),
+    [ticker],
+  )
 
-    const query = ticker.trim().toLowerCase()
-    return POPULAR_TICKERS.filter(
-      (item) =>
-        item.symbol.toLowerCase().includes(query) ||
-        item.name.toLowerCase().includes(query),
-    ).slice(0, DEFAULT_SUGGESTION_COUNT)
-  }, [ticker])
+  const trimmedLength = ticker.trim().length
+  const showMinCharsHint =
+    trimmedLength > 0 && trimmedLength < MIN_SEARCH_CHARS
+  const showNoMatches =
+    trimmedLength >= MIN_SEARCH_CHARS && suggestions.length === 0
 
   const handlePickSuggestion = (symbol) => {
     setTicker(symbol)
@@ -82,7 +84,11 @@ function App() {
       setLastQuery(payload)
       setStatus('success')
     } catch (fetchError) {
-      setError(fetchError.message || 'Something went wrong. Try again later.')
+      const fallbackMessage =
+        fetchError instanceof TypeError
+          ? 'Unable to reach the API. If you are running the static build, enable CORS on best-buy-date.onrender.com or run the app locally with `npm run dev`.'
+          : fetchError.message || 'Something went wrong. Try again later.'
+      setError(fallbackMessage)
       setStatus('error')
     }
   }
@@ -109,6 +115,9 @@ function App() {
             suggestions={suggestions}
             onPickSuggestion={handlePickSuggestion}
             disabled={status === 'loading'}
+            minSearchChars={MIN_SEARCH_CHARS}
+            showMinCharsHint={showMinCharsHint}
+            showNoMatches={showNoMatches}
           />
 
           <div className="form-control">

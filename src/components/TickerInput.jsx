@@ -4,6 +4,9 @@ function TickerInput({
   suggestions = [],
   onPickSuggestion,
   disabled = false,
+  minSearchChars = 3,
+  showMinCharsHint = false,
+  showNoMatches = false,
 }) {
   return (
     <div className="form-control">
@@ -23,7 +26,15 @@ function TickerInput({
         spellCheck="false"
         disabled={disabled}
       />
-      {suggestions.length > 0 ? (
+      {showMinCharsHint ? (
+        <p className="input-hint">
+          Type at least {minSearchChars} characters to search the directory.
+        </p>
+      ) : null}
+      {!showMinCharsHint && showNoMatches ? (
+        <p className="input-hint input-hint--muted">No tickers found.</p>
+      ) : null}
+      {!showMinCharsHint && suggestions.length > 0 ? (
         <div className="suggestions" aria-live="polite">
           <p className="suggestions__title">Popular tickers</p>
           <div className="suggestions__list">
