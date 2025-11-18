@@ -17,7 +17,7 @@ function TickerInput({
         id="ticker"
         name="ticker"
         className="text-input"
-        placeholder="e.g. AAPL"
+        placeholder="e.g. RELIANCE"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         autoComplete="off"
