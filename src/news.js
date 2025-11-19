@@ -1,78 +1,63 @@
 import { normalizeTickerSymbol } from './tickers.js'
 
-const NEWS_PROXY_BASE = 'https://api.allorigins.win/get?url='
 const DEFAULT_NEWS_LIMIT = 6
+const NEWS_PROXY_URL = (import.meta.env.VITE_NEWS_PROXY_URL || '').trim()
 
-const sanitizeText = (value) =>
-  typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+const isAbsoluteUrl = (value) => /^https?:\/\//i.test(value)
 
-const decodeHtmlEntities = (value) => {
-  if (!value) return ''
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(value, 'text/html')
-  return doc.documentElement?.textContent?.trim() ?? ''
-}
-
-const extractTextContent = (element, selector) =>
-  element.querySelector(selector)?.textContent ?? ''
-
-const buildRssUrl = (symbol) => {
-  const cleaned = normalizeTickerSymbol(symbol)
-  if (!cleaned) {
-    return ''
+const getBaseUrl = () => {
+  if (isAbsoluteUrl(NEWS_PROXY_URL)) {
+    return NEWS_PROXY_URL
   }
-  const query = encodeURIComponent(`${cleaned} NSE stock`)
-  return `https://www.bing.com/news/search?q=${query}&format=RSS&setmkt=en-IN&setlang=en-US`
+
+  const fallbackOrigin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://localhost'
+
+  return new URL(NEWS_PROXY_URL || '/api/ticker-news', fallbackOrigin).toString()
 }
+
+const ensureProxyConfigured = () => {
+  if (!NEWS_PROXY_URL) {
+    throw new Error(
+      'News proxy URL is not configured. Set VITE_NEWS_PROXY_URL to enable headlines.',
+    )
+  }
+}
+
+const buildRequestUrl = (symbol, limit) => {
+  const base = getBaseUrl()
+  const url = new URL(base)
+  url.searchParams.set('ticker', symbol)
+  url.searchParams.set('limit', String(limit))
+  return url.toString()
+}
+
+export const hasNewsProxyConfigured = Boolean(NEWS_PROXY_URL)
 
 export async function fetchTickerNews(
   symbol,
   { limit = DEFAULT_NEWS_LIMIT, signal } = {},
 ) {
-  const rssUrl = buildRssUrl(symbol)
-  if (!rssUrl) {
+  ensureProxyConfigured()
+
+  const cleanedSymbol = normalizeTickerSymbol(symbol)
+  if (!cleanedSymbol) {
     return []
   }
 
-  const proxiedUrl = `${NEWS_PROXY_BASE}${encodeURIComponent(rssUrl)}`
-  const response = await fetch(proxiedUrl, { signal })
+  const requestUrl = buildRequestUrl(cleanedSymbol, limit)
+  const response = await fetch(requestUrl, { signal })
 
   if (!response.ok) {
     throw new Error('Unable to fetch news headlines right now.')
   }
 
-  const payload = await response.json()
-  const contents = payload?.contents
-  if (!contents) {
-    return []
+  const data = await response.json()
+  if (Array.isArray(data?.items)) {
+    return data.items
   }
 
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(contents, 'text/xml')
-  const parseError = doc.querySelector('parsererror')
-  if (parseError) {
-    throw new Error('Unable to parse the news feed for this ticker.')
-  }
-
-  const items = Array.from(doc.querySelectorAll('item')).map((item) => {
-    const rawTitle = extractTextContent(item, 'title')
-    const rawLink = extractTextContent(item, 'link')
-    const rawDescription = extractTextContent(item, 'description')
-    const rawPublisher =
-      extractTextContent(item, 'source') ||
-      extractTextContent(item, 'News\\:Source')
-    const rawPublishedAt = extractTextContent(item, 'pubDate')
-
-    return {
-      title: sanitizeText(rawTitle),
-      url: rawLink.trim(),
-      summary: decodeHtmlEntities(rawDescription),
-      publisher: sanitizeText(rawPublisher),
-      published_at: sanitizeText(rawPublishedAt),
-    }
-  })
-
-  return items
-    .filter((entry) => entry.title && entry.url)
-    .slice(0, limit)
+  return []
 }

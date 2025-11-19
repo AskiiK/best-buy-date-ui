@@ -1,12 +1,42 @@
-# React + Vite
+# Best Buy Date UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for exploring the best buy date for NSE tickers. Built with Vite + React and ships as a static bundle (the `docs` folder) plus a small serverless function that proxies news headlines.
 
-Currently, two official plugins are available:
+## Getting started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+The UI expects a running instance of the [`best-buy-date` API](https://best-buy-date.onrender.com) or your own compatible backend. Set the API location and the news proxy endpoint via environment variables (see below).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Environment variables
+
+Create a `.env` file (Vite automatically loads it) with:
+
+```bash
+VITE_API_URL=https://best-buy-date.onrender.com
+VITE_NEWS_PROXY_URL=https://your-domain.vercel.app/api/ticker-news
+```
+
+- `VITE_API_URL` – REST API that powers the main query form.
+- `VITE_NEWS_PROXY_URL` – Serverless endpoint that fetches RSS headlines server-side and adds the proper CORS headers. Without this value the news section is disabled.
+
+## News proxy endpoint
+
+This repo includes `api/ticker-news.js`, a Vercel-style serverless function. Deploy this repository to Vercel (or copy the handler into your backend) and point `VITE_NEWS_PROXY_URL` to `https://<your-domain>/api/ticker-news`. The function:
+
+1. Accepts `ticker` (and optional `limit`).
+2. Fetches the Bing News RSS feed for that ticker on the server.
+3. Normalizes the items and responds with `{ items: [...] }` plus `Access-Control-Allow-Origin: *`.
+
+Because the proxy runs on your infrastructure, GitHub Pages / Vercel / any static host can call it without tripping CORS.
+
+## Building
+
+```bash
+npm run build
+```
+
+The production bundle is written to `docs/`, which can be published directly (e.g., GitHub Pages).

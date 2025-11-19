@@ -11,7 +11,7 @@ import {
   getTickerSuggestions,
   normalizeTickerSymbol,
 } from './tickers.js'
-import { fetchTickerNews } from './news.js'
+import { fetchTickerNews, hasNewsProxyConfigured } from './news.js'
 import './App.css'
 
 const TIME_WINDOWS = [
@@ -36,7 +36,7 @@ function App() {
   const [tickerDirectoryStatus, setTickerDirectoryStatus] = useState('idle')
   const [tickerDirectoryError, setTickerDirectoryError] = useState('')
   const [newsItems, setNewsItems] = useState([])
-  const [newsStatus, setNewsStatus] = useState('idle')
+  const [newsStatus, setNewsStatus] = useState(hasNewsProxyConfigured ? 'idle' : 'disabled')
   const [newsError, setNewsError] = useState('')
   const newsAbortControllerRef = useRef(null)
 
@@ -65,6 +65,13 @@ function App() {
   }
 
   const refreshNews = useCallback((symbol) => {
+    if (!hasNewsProxyConfigured) {
+      setNewsItems([])
+      setNewsStatus('disabled')
+      setNewsError('News proxy URL is not configured.')
+      return
+    }
+
     if (newsAbortControllerRef.current) {
       newsAbortControllerRef.current.abort()
     }

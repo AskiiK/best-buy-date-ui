@@ -66,6 +66,10 @@ const getNewsPublisher = (item) => item?.publisher || item?.source || item?.prov
 const getNewsUrl = (item) => item?.url || item?.link || item?.article_url || ''
 
 const getNewsStatusMessage = (status, errorMessage) => {
+  if (status === 'disabled') {
+    return 'News headlines are disabled. Set VITE_NEWS_PROXY_URL to enable them.'
+  }
+
   if (status === 'loading') {
     return 'Fetching fresh headlines…'
   }
@@ -77,12 +81,19 @@ const getNewsStatusMessage = (status, errorMessage) => {
     )
   }
 
+  if (status === 'idle') {
+    return 'Headlines will appear here after we load the results.'
+  }
+
   return 'No recent headlines were returned for this ticker. Try again later for new stories.'
 }
 
 const getNewsStatusClassName = (status) => {
   if (status === 'error') {
     return 'news__error'
+  }
+  if (status === 'disabled') {
+    return 'news__status'
   }
   if (status === 'loading') {
     return 'news__status'
@@ -104,8 +115,7 @@ function ResultsTable({
   const { news: _unusedNewsField, ...rest } = result
   const entries = Object.entries(rest)
   const normalizedNewsItems = Array.isArray(newsItems) ? newsItems : []
-  const showNewsList =
-    newsStatus !== 'error' && normalizedNewsItems.length > 0
+  const showNewsList = newsStatus === 'ready' && normalizedNewsItems.length > 0
 
   return (
     <section className="results">
