@@ -7,6 +7,8 @@ function TickerInput({
   minSearchChars = 3,
   showMinCharsHint = false,
   showNoMatches = false,
+  directoryStatus = 'idle',
+  directoryError = '',
 }) {
   return (
     <div className="form-control">
@@ -33,6 +35,14 @@ function TickerInput({
       ) : null}
       {!showMinCharsHint && showNoMatches ? (
         <p className="input-hint input-hint--muted">No tickers found.</p>
+      ) : null}
+      {directoryStatus === 'loading' ? (
+        <p className="input-hint input-hint--muted">Loading NSE ticker directory…</p>
+      ) : null}
+      {directoryStatus === 'error' && !showMinCharsHint ? (
+        <p className="input-hint input-hint--muted">
+          {directoryError || 'Unable to refresh NSE tickers. Showing the offline list.'}
+        </p>
       ) : null}
       {!showMinCharsHint && suggestions.length > 0 ? (
         <div className="suggestions" aria-live="polite">

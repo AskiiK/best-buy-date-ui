@@ -28,10 +28,21 @@ export const MIN_SEARCH_CHARS = 3
 
 export const TICKER_UNIVERSE = tickerUniverse
 
-export function getTickerSuggestions(query, limit = DEFAULT_SUGGESTION_COUNT) {
+export function normalizeTickerSymbol(symbol = '') {
+  if (typeof symbol !== 'string') {
+    return ''
+  }
+  return symbol.replace(/\.NS$/i, '').trim()
+}
+
+export function getTickerSuggestions(
+  query,
+  limit = DEFAULT_SUGGESTION_COUNT,
+  { universe = tickerUniverse, popular = POPULAR_TICKERS } = {},
+) {
   const trimmed = query.trim()
   if (!trimmed) {
-    return POPULAR_TICKERS.slice(0, limit)
+    return popular.slice(0, limit)
   }
 
   if (trimmed.length < MIN_SEARCH_CHARS) {
@@ -42,7 +53,7 @@ export function getTickerSuggestions(query, limit = DEFAULT_SUGGESTION_COUNT) {
   const matches = []
   const seen = new Set()
 
-  for (const ticker of tickerUniverse) {
+  for (const ticker of universe) {
     const symbol = ticker.symbol?.toLowerCase() ?? ''
     const name = ticker.name?.toLowerCase() ?? ''
     if (symbol.includes(normalized) || name.includes(normalized)) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AssetSelector from './components/AssetSelector.jsx'
 import CheckButton from './components/CheckButton.jsx'
 import ResultsTable from './components/ResultsTable.jsx'
@@ -6,7 +6,10 @@ import TickerInput from './components/TickerInput.jsx'
 import {
   DEFAULT_SUGGESTION_COUNT,
   MIN_SEARCH_CHARS,
+  POPULAR_TICKERS,
+  TICKER_UNIVERSE,
   getTickerSuggestions,
+  normalizeTickerSymbol,
 } from './tickers.js'
 import './App.css'
 
@@ -27,6 +30,10 @@ function App() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [lastQuery, setLastQuery] = useState(null)
+  const [tickerUniverse, setTickerUniverse] = useState(TICKER_UNIVERSE)
+  const [popularTickers, setPopularTickers] = useState(POPULAR_TICKERS)
+  const [tickerDirectoryStatus, setTickerDirectoryStatus] = useState('idle')
+  const [tickerDirectoryError, setTickerDirectoryError] = useState('')
 
   const normalizedTicker = ticker.trim().toUpperCase()
   const canSubmit = Boolean(
@@ -34,8 +41,12 @@ function App() {
   )
 
   const suggestions = useMemo(
-    () => getTickerSuggestions(ticker, DEFAULT_SUGGESTION_COUNT),
-    [ticker],
+    () =>
+      getTickerSuggestions(ticker, DEFAULT_SUGGESTION_COUNT, {
+        universe: tickerUniverse,
+        popular: popularTickers,
+      }),
+    [ticker, tickerUniverse, popularTickers],
   )
 
   const trimmedLength = ticker.trim().length
@@ -47,6 +58,80 @@ function App() {
   const handlePickSuggestion = (symbol) => {
     setTicker(symbol)
   }
+  useEffect(() => {
+    if (!apiBase) return
+
+    let ignore = false
+    const controller = new AbortController()
+
+    const fetchDirectory = async () => {
+      setTickerDirectoryStatus('loading')
+      setTickerDirectoryError('')
+
+      try {
+        const response = await fetch(`${apiBase}/nse-tickers`, {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error('Unable to load the NSE ticker directory right now.')
+        }
+
+        const data = await response.json()
+        if (!Array.isArray(data)) {
+          throw new Error('Unexpected response received for the NSE ticker directory.')
+        }
+
+        if (ignore) return
+
+        const normalized = data
+          .map((item) => {
+            const cleanedSymbol = normalizeTickerSymbol(item.symbol)
+            return {
+              symbol: cleanedSymbol || normalizeTickerSymbol(item?.ticker),
+              name: item.name || cleanedSymbol || item.symbol,
+            }
+          })
+          .filter((item) => item.symbol)
+        const deduped = []
+        const seen = new Set()
+
+        for (const entry of normalized) {
+          const key = entry.symbol.toUpperCase()
+          if (seen.has(key)) continue
+          seen.add(key)
+          deduped.push(entry)
+        }
+
+        if (deduped.length > 0) {
+          setTickerUniverse(deduped)
+          setPopularTickers(deduped.slice(0, POPULAR_TICKERS.length))
+          setTickerDirectoryStatus('ready')
+        } else {
+          setTickerDirectoryStatus('error')
+          setTickerDirectoryError(
+            'The NSE ticker directory returned no entries. Showing the bundled tickers instead.',
+          )
+        }
+      } catch (directoryError) {
+        if (ignore || directoryError.name === 'AbortError') {
+          return
+        }
+        setTickerDirectoryStatus('error')
+        setTickerDirectoryError(
+          directoryError.message ||
+            'Unable to refresh the NSE tickers. Using the offline list.',
+        )
+      }
+    }
+
+    fetchDirectory()
+
+    return () => {
+      ignore = true
+      controller.abort()
+    }
+  }, [apiBase])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -118,6 +203,8 @@ function App() {
             minSearchChars={MIN_SEARCH_CHARS}
             showMinCharsHint={showMinCharsHint}
             showNoMatches={showNoMatches}
+            directoryStatus={tickerDirectoryStatus}
+            directoryError={tickerDirectoryError}
           />
 
           <div className="form-control">
