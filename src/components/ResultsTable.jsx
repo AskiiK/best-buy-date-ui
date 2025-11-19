@@ -65,14 +65,47 @@ const getNewsPublisher = (item) => item?.publisher || item?.source || item?.prov
 
 const getNewsUrl = (item) => item?.url || item?.link || item?.article_url || ''
 
-function ResultsTable({ result, lastQuery }) {
+const getNewsStatusMessage = (status, errorMessage) => {
+  if (status === 'loading') {
+    return 'Fetching fresh headlines…'
+  }
+
+  if (status === 'error') {
+    return (
+      errorMessage ||
+      'Unable to reach the news service right now. Please try again in a bit.'
+    )
+  }
+
+  return 'No recent headlines were returned for this ticker. Try again later for new stories.'
+}
+
+const getNewsStatusClassName = (status) => {
+  if (status === 'error') {
+    return 'news__error'
+  }
+  if (status === 'loading') {
+    return 'news__status'
+  }
+  return 'news__empty'
+}
+
+function ResultsTable({
+  result,
+  lastQuery,
+  newsItems = [],
+  newsStatus = 'idle',
+  newsError = '',
+}) {
   if (!result) {
     return null
   }
 
-  const { news: rawNews = [], ...rest } = result
+  const { news: _unusedNewsField, ...rest } = result
   const entries = Object.entries(rest)
-  const newsItems = Array.isArray(rawNews) ? rawNews : []
+  const normalizedNewsItems = Array.isArray(newsItems) ? newsItems : []
+  const showNewsList =
+    newsStatus !== 'error' && normalizedNewsItems.length > 0
 
   return (
     <section className="results">
@@ -104,9 +137,9 @@ function ResultsTable({ result, lastQuery }) {
           <p className="eyebrow">News</p>
           <h3>Latest headlines</h3>
         </div>
-        {newsItems.length > 0 ? (
+        {showNewsList ? (
           <ul className="news__list">
-            {newsItems.map((item, index) => {
+            {normalizedNewsItems.map((item, index) => {
               const title = getNewsTitle(item)
               const summary = getNewsSummary(item)
               const publisher = getNewsPublisher(item)
@@ -143,8 +176,8 @@ function ResultsTable({ result, lastQuery }) {
             })}
           </ul>
         ) : (
-          <p className="news__empty">
-            No recent headlines were returned for this ticker. Try again later for new stories.
+          <p className={getNewsStatusClassName(newsStatus)}>
+            {getNewsStatusMessage(newsStatus, newsError)}
           </p>
         )}
       </div>

@@ -273,6 +273,18 @@
   color: #64748b;
 }
 
+.news__status {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #0ea5e9;
+}
+
+.news__error {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #b91c1c;
+}
+
 .results {
   border: 1px solid #cbd5f5;
   border-radius: 20px;

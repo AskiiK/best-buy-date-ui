@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AssetSelector from './components/AssetSelector.jsx'
 import CheckButton from './components/CheckButton.jsx'
 import ResultsTable from './components/ResultsTable.jsx'
@@ -11,6 +11,7 @@ import {
   getTickerSuggestions,
   normalizeTickerSymbol,
 } from './tickers.js'
+import { fetchTickerNews } from './news.js'
 import './App.css'
 
 const TIME_WINDOWS = [
@@ -34,6 +35,10 @@ function App() {
   const [popularTickers, setPopularTickers] = useState(POPULAR_TICKERS)
   const [tickerDirectoryStatus, setTickerDirectoryStatus] = useState('idle')
   const [tickerDirectoryError, setTickerDirectoryError] = useState('')
+  const [newsItems, setNewsItems] = useState([])
+  const [newsStatus, setNewsStatus] = useState('idle')
+  const [newsError, setNewsError] = useState('')
+  const newsAbortControllerRef = useRef(null)
 
   const normalizedTicker = ticker.trim().toUpperCase()
   const canSubmit = Boolean(
@@ -58,6 +63,55 @@ function App() {
   const handlePickSuggestion = (symbol) => {
     setTicker(symbol)
   }
+
+  const refreshNews = useCallback((symbol) => {
+    if (newsAbortControllerRef.current) {
+      newsAbortControllerRef.current.abort()
+    }
+
+    const cleanedSymbol = normalizeTickerSymbol(symbol)
+    if (!cleanedSymbol) {
+      setNewsItems([])
+      setNewsStatus('idle')
+      setNewsError('')
+      return
+    }
+
+    const controller = new AbortController()
+    newsAbortControllerRef.current = controller
+    setNewsItems([])
+    setNewsStatus('loading')
+    setNewsError('')
+
+    fetchTickerNews(cleanedSymbol, { signal: controller.signal })
+      .then((items) => {
+        if (controller.signal.aborted) {
+          return
+        }
+        setNewsItems(items)
+        setNewsStatus(items.length > 0 ? 'ready' : 'empty')
+        newsAbortControllerRef.current = null
+      })
+      .catch((newsFetchError) => {
+        if (controller.signal.aborted) {
+          return
+        }
+        setNewsStatus('error')
+        setNewsError(
+          newsFetchError?.message ||
+            'Unable to fetch headlines right now. Try again in a bit.',
+        )
+        newsAbortControllerRef.current = null
+      })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (newsAbortControllerRef.current) {
+        newsAbortControllerRef.current.abort()
+      }
+    }
+  }, [])
   useEffect(() => {
     if (!apiBase) return
 
@@ -168,6 +222,7 @@ function App() {
       setResult(data)
       setLastQuery(payload)
       setStatus('success')
+      refreshNews(payload.ticker)
     } catch (fetchError) {
       const fallbackMessage =
         fetchError instanceof TypeError
@@ -241,7 +296,13 @@ function App() {
         ) : null}
 
         {status === 'success' && result ? (
-          <ResultsTable result={result} lastQuery={lastQuery} />
+          <ResultsTable
+            result={result}
+            lastQuery={lastQuery}
+            newsItems={newsItems}
+            newsStatus={newsStatus}
+            newsError={newsError}
+          />
         ) : null}
       </main>
     </div>
